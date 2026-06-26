@@ -750,7 +750,6 @@ function resolveRound() {
   // 3. Echo
   if (pKw === 'Echo' && eKw) {
     log(`Your Echo copies enemy's ${eKw}.`, 'log-info');
-    // apply echoed effect below, replace pKw
     pKw = eKw;
   } else if (eKw === 'Echo' && pKw) {
     log(`Enemy Echo copies your ${pKw}.`, 'log-info');
@@ -781,7 +780,7 @@ function resolveRound() {
     log(`Enemy Surge! Their ${e.name} gains +3 Power (now ${ePwr}).`, 'log-info');
   }
 
-  // Trap pending (set AFTER using — Trap does nothing this round, enables next)
+  // Trap pending (set AFTER using)
   if (pKw === 'Trap') {
     gs.trapPending.player = true;
     log(`Your Trap is set — next card's Power doubles.`, 'log-info');
@@ -863,7 +862,6 @@ function resolveRound() {
 }
 
 function nextRound() {
-  // Bait enforcement for player
   if (gs.baitForced.player) {
     const maxPwr = Math.max(...gs.playerHand.map(c => c.power));
     const forced = gs.playerHand.find(c => c.power === maxPwr);
@@ -883,11 +881,9 @@ function nextRound() {
 function endFight() {
   document.getElementById('next-round-btn').style.display = 'none';
   if (gs.playerHP <= 0) {
-    // Player lost
     showEndScreen(false);
     return;
   }
-  // Player won the fight
   if (gs.fightIndex >= 4) {
     showEndScreen(true);
     return;
@@ -906,7 +902,6 @@ function showReward() {
   const container = document.getElementById('reward-options');
   container.innerHTML = '';
 
-  // Option A: Add a random unchosen card
   const unchosen = CARD_POOL.filter(c => !gs.playerDeck.some(dc => dc.id === c.id));
   const newCard = unchosen.length ? rand(unchosen) : null;
 
