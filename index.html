@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flip War</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d0d0d;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: 0.3em;
+  color: #fff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  margin-bottom: 30px;
+}
+
+/* ── PHASES ── */
+.phase { display: none; width: 100%; max-width: 900px; }
+.phase.active { display: block; }
+
+/* ── CARD ── */
+.card {
+  background: #1a1a2e;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 12px 10px;
+  width: 110px;
+  min-height: 150px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  position: relative;
+}
+.card:hover { border-color: #666; transform: translateY(-3px); }
+.card.selected { border-color: #fff; background: #1e2a4a; }
+.card.played { border-color: #ffcc00; }
+.card.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.card.face-down {
+  background: #111;
+  border-color: #444;
+  justify-content: center;
+  font-size: 2rem;
+  color: #333;
+  letter-spacing: 4px;
+}
+
+.card-name {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  line-height: 1.2;
+}
+.card-stats {
+  font-size: 0.72rem;
+  color: #aaa;
+  text-align: left;
+  width: 100%;
+  padding: 0 4px;
+  line-height: 1.6;
+}
+.card-pwr { color: #ff6b6b; font-weight: bold; }
+.card-spd { color: #74c0fc; }
+.card-keyword {
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: auto;
+}
+
+/* Keyword colors */
+.kw-Bleed  { background: #5c0a0a; color: #ff9999; border: 1px solid #8b1a1a; }
+.kw-Shield { background: #0a2a5c; color: #99ccff; border: 1px solid #1a4a8b; }
+.kw-Echo   { background: #2a0a5c; color: #cc99ff; border: 1px solid #4a1a8b; }
+.kw-Bait   { background: #3a2a00; color: #ffd966; border: 1px solid #7a5a00; }
+.kw-Surge  { background: #0a3a0a; color: #99ff99; border: 1px solid #1a6a1a; }
+.kw-Trap   { background: #3a1a00; color: #ff9966; border: 1px solid #6a3a00; }
+.kw-none   { background: #222; color: #666; border: 1px solid #333; }
+
+/* ── DRAFT PHASE ── */
+#draft-phase h2 { text-align: center; margin-bottom: 6px; }
+#draft-counter {
+  text-align: center;
+  font-size: 1rem;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+#draft-counter span { color: #fff; font-weight: bold; }
+#card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+#begin-run-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 12px 40px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #1a3a1a;
+  color: #99ff99;
+  border: 2px solid #1a6a1a;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: background 0.15s;
+}
+#begin-run-btn:hover:not(:disabled) { background: #2a5a2a; }
+#begin-run-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── FIGHT PHASE ── */
+#fight-phase {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+}
+#fight-phase.active { display: flex; }
+
+.fight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 20px;
+}
+.hp-display { font-size: 1rem; }
+.hp-display .hp-val { color: #ff6b6b; font-size: 1.3rem; font-weight: bold; }
+.fight-title { font-size: 0.9rem; color: #aaa; letter-spacing: 0.1em; text-align: center; }
+.bleed-display { font-size: 0.8rem; color: #ff9999; }
+
+.arena {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.zone-label {
+  font-size: 0.7rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.card-zone {
+  display: flex;
+  justify-content: center;
+  min-height: 170px;
+  align-items: center;
+}
+
+.divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid #333;
+  margin: 4px 0;
+}
+
+#reveal-btn {
+  padding: 12px 50px;
+  font-size: 1.1rem;
+  font-family: inherit;
+  background: #3a2200;
+  color: #ffcc66;
+  border: 2px solid #7a5500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: bold;
+  transition: background 0.15s;
+}
+#reveal-btn:hover:not(:disabled) { background: #5a3a00; }
+#reveal-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+#next-round-btn {
+  padding: 10px 36px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #1a1a3a;
+  color: #99aaff;
+  border: 2px solid #3a3a7a;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  display: none;
+}
+#next-round-btn:hover { background: #2a2a5a; }
+
+#round-log {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 0.8rem;
+  color: #ccc;
+  min-height: 60px;
+  width: 100%;
+  line-height: 1.8;
+}
+#round-log .log-win  { color: #99ff99; }
+#round-log .log-lose { color: #ff9999; }
+#round-log .log-tie  { color: #ffcc66; }
+#round-log .log-info { color: #aaa; }
+#round-log .log-bleed { color: #ff6b6b; }
+
+#player-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  min-height: 170px;
+  align-items: flex-start;
+  padding: 10px;
+  background: #0d0d1a;
+  border: 1px solid #222;
+  border-radius: 8px;
+}
+
+/* ── REWARD PHASE ── */
+#reward-phase h2 { text-align: center; margin-bottom: 6px; }
+#reward-subtitle { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+#reward-options {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.reward-option {
+  background: #111;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 16px;
+  width: 260px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.reward-option:hover { border-color: #ffcc66; background: #1a1800; }
+.reward-option.selected-reward { border-color: #ffcc66; background: #1a1800; }
+.reward-title { font-size: 0.85rem; font-weight: bold; color: #ffcc66; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+.reward-desc { font-size: 0.78rem; color: #aaa; line-height: 1.5; }
+
+#upgrade-picker, #keyword-picker {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+#upgrade-picker.visible, #keyword-picker.visible { display: flex; }
+#upgrade-picker p, #keyword-picker p { color: #aaa; font-size: 0.85rem; }
+#upgrade-card-grid, #keyword-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+#continue-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 12px 40px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #1a3a1a;
+  color: #99ff99;
+  border: 2px solid #1a6a1a;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: background 0.15s;
+}
+#continue-btn:hover:not(:disabled) { background: #2a5a2a; }
+#continue-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── END PHASE ── */
+#end-phase { text-align: center; padding: 40px 20px; }
+#end-phase h2 { font-size: 2rem; margin-bottom: 12px; }
+#end-message { color: #aaa; font-size: 1rem; margin-bottom: 30px; line-height: 1.7; }
+#play-again-btn {
+  padding: 14px 50px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #2a1a00;
+  color: #ffcc66;
+  border: 2px solid #7a5500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: bold;
+}
+#play-again-btn:hover { background: #4a3200; }
+</style>
+</head>
+<body>
+
+<h1>Flip War</h1>
+<p class="subtitle">Blind reveal. Higher power wins. Keywords change everything.</p>
+
+<!-- DRAFT PHASE -->
+<div id="draft-phase" class="phase active">
+  <h2>Draft Your Deck</h2>
+  <p id="draft-counter">Selected: <span id="draft-count">0</span> / 7</p>
+  <div id="card-grid"></div>
+  <button id="begin-run-btn" disabled>Begin Run</button>
+</div>
+
+<!-- FIGHT PHASE -->
+<div id="fight-phase" class="phase">
+  <div class="fight-header">
+    <div class="hp-display">Enemy HP: <span class="hp-val" id="enemy-hp">10</span></div>
+    <div class="fight-title" id="fight-title">Fight 1 of 5</div>
+    <div class="hp-display">Player HP: <span class="hp-val" id="player-hp">10</span></div>
+  </div>
+  <div class="bleed-display" id="bleed-info">Bleed stacks — Player: 0 | Enemy: 0</div>
+
+  <div class="arena">
+    <div class="zone-label">Enemy Card</div>
+    <div class="card-zone" id="enemy-zone"></div>
+    <hr class="divider">
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button id="reveal-btn" disabled>Reveal</button>
+      <button id="next-round-btn">Next Round</button>
+    </div>
+    <hr class="divider">
+    <div class="card-zone" id="player-zone"></div>
+    <div class="zone-label">Your Card</div>
+  </div>
+
+  <div id="round-log"></div>
+
+  <div class="zone-label">Your Hand</div>
+  <div id="player-hand"></div>
+</div>
+
+<!-- REWARD PHASE -->
+<div id="reward-phase" class="phase">
+  <h2>Choose a Reward</h2>
+  <p id="reward-subtitle">Pick one upgrade before the next fight.</p>
+  <div id="reward-options"></div>
+  <div id="upgrade-picker">
+    <p>Select a card to upgrade (+2 Power):</p>
+    <div id="upgrade-card-grid"></div>
+  </div>
+  <div id="keyword-picker">
+    <p>Select a card to receive a random keyword:</p>
+    <div id="keyword-card-grid"></div>
+  </div>
+  <button id="continue-btn" disabled>Continue</button>
+</div>
+
+<!-- END PHASE -->
+<div id="end-phase" class="phase">
+  <h2 id="end-title"></h2>
+  <div id="end-message"></div>
+  <button id="play-again-btn">Play Again</button>
+</div>
+
+<script>
+// ── CARD POOL ──────────────────────────────────────────────────────────────
+const CARD_POOL = [
+  { id: 0,  name: 'Jab',       power: 3, speed: 5, keyword: 'Bleed'  },
+  { id: 1,  name: 'Fortress',  power: 2, speed: 2, keyword: 'Shield' },
+  { id: 2,  name: 'Mirror',    power: 4, speed: 3, keyword: 'Echo'   },
+  { id: 3,  name: 'Decoy',     power: 1, speed: 4, keyword: 'Bait'   },
+  { id: 4,  name: 'Landmine',  power: 1, speed: 1, keyword: 'Trap'   },
+  { id: 5,  name: 'Crusher',   power: 7, speed: 1, keyword: null      },
+  { id: 6,  name: 'Riposte',   power: 5, speed: 4, keyword: 'Surge'  },
+  { id: 7,  name: 'Phantom',   power: 3, speed: 5, keyword: 'Bait'   },
+  { id: 8,  name: 'Bulwark',   power: 4, speed: 2, keyword: 'Shield' },
+  { id: 9,  name: 'Copycat',   power: 6, speed: 3, keyword: 'Echo'   },
+  { id: 10, name: 'Infection', power: 2, speed: 4, keyword: 'Bleed'  },
+  { id: 11, name: 'Spike',     power: 5, speed: 1, keyword: 'Trap'   },
+  { id: 12, name: 'Brawler',   power: 8, speed: 1, keyword: null      },
+  { id: 13, name: 'Feint',     power: 3, speed: 5, keyword: 'Surge'  },
+  { id: 14, name: 'Paragon',   power: 6, speed: 2, keyword: 'Shield' },
+];
+
+// Enemy decks — each card is {name, power, keyword}
+const ENEMY_DECKS = {
+  Grunt:    [
+    { name:'Strike',   power:3, keyword:null    },
+    { name:'Slam',     power:5, keyword:null    },
+    { name:'Toxin',    power:2, keyword:'Bleed' },
+    { name:'Guard',    power:2, keyword:'Shield'},
+    { name:'Pummel',   power:4, keyword:null    },
+  ],
+  Scrapper: [
+    { name:'Comeback', power:4, keyword:'Surge' },
+    { name:'Haymaker', power:6, keyword:null    },
+    { name:'Lure',     power:1, keyword:'Bait'  },
+    { name:'Rush',     power:3, keyword:null    },
+    { name:'Wound',    power:3, keyword:'Bleed' },
+  ],
+  Tactician:[
+    { name:'Barrier',  power:4, keyword:'Shield'},
+    { name:'Reflect',  power:5, keyword:'Echo'  },
+    { name:'Assault',  power:7, keyword:null    },
+    { name:'Decoy',    power:2, keyword:'Bait'  },
+    { name:'Venom',    power:3, keyword:'Bleed' },
+  ],
+  Veteran:  [
+    { name:'Rally',    power:6, keyword:'Surge' },
+    { name:'Cover',    power:3, keyword:'Shield'},
+    { name:'Brute',    power:8, keyword:null    },
+    { name:'Mimic',    power:4, keyword:'Echo'  },
+    { name:'Snare',    power:3, keyword:'Trap'  },
+  ],
+  Arbiter:  [
+    { name:'Pitfall',  power:5, keyword:'Trap'  },
+    { name:'Overload', power:7, keyword:'Surge' },
+    { name:'Aegis',    power:4, keyword:'Shield'},
+    { name:'Doppel',   power:6, keyword:'Echo'  },
+    { name:'Plague',   power:3, keyword:'Bleed' },
+    { name:'Devastate',power:9, keyword:null    },
+  ],
+};
+
+const FIGHT_ORDER = ['Grunt','Scrapper','Tactician','Veteran','Arbiter'];
+const KEYWORDS = ['Bleed','Shield','Echo','Bait','Surge','Trap'];
+const TIERS = { Grunt:1, Scrapper:1, Tactician:2, Veteran:2, Arbiter:3 };
+
+function cloneCard(c) { return Object.assign({}, c); }
+
+// ── GAME STATE ──────────────────────────────────────────────────────────────
+let gs = {};
+
+function initState() {
+  gs = {
+    phase: 'draft',
+    playerHP: 10,
+    enemyHP: 10,
+    playerDeck: [],
+    playerHand: [],
+    enemyDeck: [],
+    enemyHand: [],
+    playedCard: null,
+    enemyPlayedCard: null,
+    bleedStacks:     { player: 0, enemy: 0 },
+    bleedRoundsLeft: { player: 0, enemy: 0 },
+    trapPending: { player: false, enemy: false },
+    baitForced:  { player: false, enemy: false },
+    lastRoundWinner: null,
+    fightIndex: 0,
+    roundLog: [],
+    selectedDraft: [],
+    rewardChoice: null,
+    rewardSubChoice: null,
+    enemyLastPlays: [],
+  };
+}
+
+// ── UTILITY ────────────────────────────────────────────────────────────────
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── CARD RENDERING ─────────────────────────────────────────────────────────
+function cardEl(card, opts = {}) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  if (opts.faceDown) {
+    el.classList.add('face-down');
+    el.textContent = '? ? ?';
+    return el;
+  }
+  const kwClass = card.keyword ? `kw-${card.keyword}` : 'kw-none';
+  const kwLabel = card.keyword || '—';
+  const pwr = opts.effectivePower !== undefined ? opts.effectivePower : card.power;
+  el.innerHTML = `
+    <div class="card-name">${card.name}</div>
+    <div class="card-stats">
+      <div><span class="card-pwr">PWR: ${pwr}</span></div>
+      <div class="card-spd">SPD: ${card.speed ?? '—'}</div>
+    </div>
+    <div class="card-keyword ${kwClass}">${kwLabel}</div>
+  `;
+  if (opts.onClick) el.addEventListener('click', opts.onClick);
+  if (opts.extraClass) el.classList.add(opts.extraClass);
+  return el;
+}
+
+// ── PHASE SWITCHING ────────────────────────────────────────────────────────
+function showPhase(id) {
+  document.querySelectorAll('.phase').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── DRAFT PHASE ────────────────────────────────────────────────────────────
+function renderDraft() {
+  showPhase('draft-phase');
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = '';
+  gs.selectedDraft = [];
+  updateDraftCounter();
+
+  CARD_POOL.forEach(card => {
+    const el = cardEl(card, {
+      onClick: () => toggleDraftSelect(card, el),
+    });
+    grid.appendChild(el);
+  });
+}
+
+function toggleDraftSelect(card, el) {
+  const idx = gs.selectedDraft.findIndex(c => c.id === card.id);
+  if (idx === -1) {
+    if (gs.selectedDraft.length >= 7) return;
+    gs.selectedDraft.push(cloneCard(card));
+    el.classList.add('selected');
+  } else {
+    gs.selectedDraft.splice(idx, 1);
+    el.classList.remove('selected');
+  }
+  updateDraftCounter();
+}
+
+function updateDraftCounter() {
+  document.getElementById('draft-count').textContent = gs.selectedDraft.length;
+  document.getElementById('begin-run-btn').disabled = gs.selectedDraft.length !== 7;
+}
+
+document.getElementById('begin-run-btn').addEventListener('click', () => {
+  gs.playerDeck = gs.selectedDraft.map(cloneCard);
+  gs.fightIndex = 0;
+  startFight();
+});
+
+// ── FIGHT PHASE ────────────────────────────────────────────────────────────
+function startFight() {
+  const enemyName = FIGHT_ORDER[gs.fightIndex];
+  gs.enemyHP = 10;
+  gs.playerHP = 10;
+  gs.playerHand = gs.playerDeck.map(cloneCard);
+  gs.enemyDeck = ENEMY_DECKS[enemyName].map(cloneCard);
+  gs.enemyHand = [...gs.enemyDeck];
+  gs.bleedStacks     = { player: 0, enemy: 0 };
+  gs.bleedRoundsLeft = { player: 0, enemy: 0 };
+  gs.trapPending = { player: false, enemy: false };
+  gs.baitForced  = { player: false, enemy: false };
+  gs.lastRoundWinner = null;
+  gs.enemyLastPlays = [];
+  gs.playedCard = null;
+  gs.enemyPlayedCard = null;
+
+  document.getElementById('fight-title').textContent =
+    `Fight ${gs.fightIndex + 1} of 5: ${enemyName}`;
+  showPhase('fight-phase');
+  renderFight();
+}
+
+function renderFight() {
+  document.getElementById('player-hp').textContent = gs.playerHP;
+  document.getElementById('enemy-hp').textContent = gs.enemyHP;
+  document.getElementById('bleed-info').textContent =
+    `Bleed stacks — Player: ${gs.bleedStacks.player} | Enemy: ${gs.bleedStacks.enemy}`;
+
+  // Enemy zone
+  const ez = document.getElementById('enemy-zone');
+  ez.innerHTML = '';
+  if (gs.enemyPlayedCard) {
+    ez.appendChild(cardEl(gs.enemyPlayedCard, { extraClass: 'played' }));
+  } else {
+    ez.appendChild(cardEl(null, { faceDown: true }));
+  }
+
+  // Player zone
+  const pz = document.getElementById('player-zone');
+  pz.innerHTML = '';
+  if (gs.playedCard) {
+    pz.appendChild(cardEl(gs.playedCard, { extraClass: 'played' }));
+  }
+
+  // Buttons
+  document.getElementById('reveal-btn').disabled = !gs.playedCard || !!gs.enemyPlayedCard;
+
+  // Hand
+  renderHand();
+  renderLog();
+}
+
+function renderHand() {
+  const hand = document.getElementById('player-hand');
+  hand.innerHTML = '';
+  gs.playerHand.forEach(card => {
+    const el = cardEl(card, {
+      onClick: () => playCard(card, el),
+    });
+    if (gs.playedCard || gs.enemyPlayedCard) el.classList.add('disabled');
+    hand.appendChild(el);
+  });
+}
+
+function renderLog() {
+  const log = document.getElementById('round-log');
+  if (!gs.roundLog.length) { log.innerHTML = '<span class="log-info">Select a card from your hand, then click Reveal.</span>'; return; }
+  log.innerHTML = gs.roundLog.map(l => `<div class="${l.cls}">${l.text}</div>`).join('');
+}
+
+function playCard(card, el) {
+  if (gs.playedCard || gs.enemyPlayedCard) return;
+  gs.playedCard = card;
+  gs.roundLog = [];
+  renderFight();
+}
+
+// Enemy AI picks a card
+function enemyPickCard() {
+  const enemyName = FIGHT_ORDER[gs.fightIndex];
+  const tier = TIERS[enemyName];
+  let available = gs.enemyHand;
+  if (!available.length) {
+    available = gs.enemyDeck.map(cloneCard);
+    gs.enemyHand = available;
+  }
+
+  if (gs.baitForced.enemy) {
+    const maxPwr = Math.max(...available.map(c => c.power));
+    const forced = available.find(c => c.power === maxPwr) || available[0];
+    gs.baitForced.enemy = false;
+    return forced;
+  }
+
+  if (tier === 1) {
+    return rand(available);
+  }
+
+  if (tier === 2) {
+    if (gs.enemyHP < gs.playerHP) {
+      const maxPwr = Math.max(...available.map(c => c.power));
+      return available.find(c => c.power === maxPwr) || rand(available);
+    }
+    return rand(available);
+  }
+
+  // Tier 3: Boss logic
+  const lastTwo = gs.enemyLastPlays.slice(-2);
+  const playerUsedKeywordTwice = lastTwo.length === 2 &&
+    lastTwo[0].keyword && lastTwo[0].keyword === lastTwo[1].keyword;
+  const playerBeenWinning = lastTwo.length === 2 &&
+    lastTwo[0].result === 'player' && lastTwo[1].result === 'player';
+
+  if (playerUsedKeywordTwice) {
+    const shield = available.find(c => c.keyword === 'Shield');
+    if (shield) return shield;
+  }
+  if (playerBeenWinning) {
+    const surge = available.find(c => c.keyword === 'Surge');
+    if (surge) return surge;
+  }
+  return rand(available);
+}
+
+document.getElementById('reveal-btn').addEventListener('click', () => {
+  if (!gs.playedCard) return;
+  gs.enemyPlayedCard = enemyPickCard();
+
+  // Remove played card from hand
+  const idx = gs.playerHand.findIndex(c => c === gs.playedCard);
+  if (idx !== -1) gs.playerHand.splice(idx, 1);
+
+  // Remove from enemy hand
+  const eidx = gs.enemyHand.findIndex(c => c === gs.enemyPlayedCard);
+  if (eidx !== -1) gs.enemyHand.splice(eidx, 1);
+
+  resolveRound();
+});
+
+function resolveRound() {
+  const p = gs.playedCard;
+  const e = gs.enemyPlayedCard;
+  gs.roundLog = [];
+  const log = (text, cls='log-info') => gs.roundLog.push({ text, cls });
+
+  log(`You played: ${p.name} (PWR ${p.power}${p.keyword ? ', '+p.keyword : ''})`);
+  log(`Enemy played: ${e.name} (PWR ${e.power}${e.keyword ? ', '+e.keyword : ''})`);
+
+  let pKw = p.keyword;
+  let eKw = e.keyword;
+
+  // 1. Shield check
+  if (pKw === 'Shield' && eKw) {
+    log(`Your Shield cancels enemy's ${eKw}.`, 'log-info');
+    eKw = null;
+  } else if (eKw === 'Shield' && pKw) {
+    log(`Enemy Shield cancels your ${pKw}.`, 'log-info');
+    pKw = null;
+  }
+
+  // 2. Bait
+  if (pKw === 'Bait') {
+    gs.baitForced.enemy = true;
+    log('Bait! Enemy must play their highest-Power card next round.', 'log-info');
+  }
+  if (eKw === 'Bait') {
+    gs.baitForced.player = true;
+    log('Enemy Bait! You must play your highest-Power card next round.', 'log-info');
+  }
+
+  // 3. Echo
+  if (pKw === 'Echo' && eKw) {
+    log(`Your Echo copies enemy's ${eKw}.`, 'log-info');
+    // apply echoed effect below, replace pKw
+    pKw = eKw;
+  } else if (eKw === 'Echo' && pKw) {
+    log(`Enemy Echo copies your ${pKw}.`, 'log-info');
+    eKw = pKw;
+  }
+
+  // Trap doubling
+  let pPwr = p.power;
+  let ePwr = e.power;
+  if (gs.trapPending.player) {
+    pPwr *= 2;
+    log(`Trap triggers! Your ${p.name} power doubled to ${pPwr}.`, 'log-info');
+    gs.trapPending.player = false;
+  }
+  if (gs.trapPending.enemy) {
+    ePwr *= 2;
+    log(`Enemy Trap triggers! Their ${e.name} power doubled to ${ePwr}.`, 'log-info');
+    gs.trapPending.enemy = false;
+  }
+
+  // 4. Surge
+  if (pKw === 'Surge' && gs.lastRoundWinner === 'enemy') {
+    pPwr += 3;
+    log(`Surge! Your ${p.name} gains +3 Power (now ${pPwr}).`, 'log-info');
+  }
+  if (eKw === 'Surge' && gs.lastRoundWinner === 'player') {
+    ePwr += 3;
+    log(`Enemy Surge! Their ${e.name} gains +3 Power (now ${ePwr}).`, 'log-info');
+  }
+
+  // Trap pending (set AFTER using — Trap does nothing this round, enables next)
+  if (pKw === 'Trap') {
+    gs.trapPending.player = true;
+    log(`Your Trap is set — next card's Power doubles.`, 'log-info');
+  }
+  if (eKw === 'Trap') {
+    gs.trapPending.enemy = true;
+    log(`Enemy Trap is set — their next card's Power doubles.`, 'log-info');
+  }
+
+  // Bleed
+  if (pKw === 'Bleed') {
+    gs.bleedStacks.enemy += 1;
+    gs.bleedRoundsLeft.enemy = Math.max(gs.bleedRoundsLeft.enemy, 3);
+    log(`Bleed applied to enemy! (${gs.bleedStacks.enemy} stack${gs.bleedStacks.enemy>1?'s':''})`, 'log-info');
+  }
+  if (eKw === 'Bleed') {
+    gs.bleedStacks.player += 1;
+    gs.bleedRoundsLeft.player = Math.max(gs.bleedRoundsLeft.player, 3);
+    log(`Enemy Bleed applied to you! (${gs.bleedStacks.player} stack${gs.bleedStacks.player>1?'s':''})`, 'log-info');
+  }
+
+  // 5. Power comparison
+  let roundWinner = null;
+  if (pPwr > ePwr) {
+    gs.enemyHP -= 1;
+    roundWinner = 'player';
+    log(`You win the clash! ${p.name} (${pPwr}) beats ${e.name} (${ePwr}). Enemy takes 1 damage.`, 'log-win');
+  } else if (ePwr > pPwr) {
+    gs.playerHP -= 1;
+    roundWinner = 'enemy';
+    log(`Enemy wins the clash! ${e.name} (${ePwr}) beats ${p.name} (${pPwr}). You take 1 damage.`, 'log-lose');
+  } else {
+    gs.playerHP -= 1;
+    gs.enemyHP -= 1;
+    roundWinner = 'tie';
+    log(`Tie! Both take 1 damage.`, 'log-tie');
+  }
+
+  gs.lastRoundWinner = roundWinner;
+
+  // Track for boss AI
+  gs.enemyLastPlays.push({
+    keyword: p.keyword,
+    result: roundWinner,
+  });
+
+  // 6. Bleed ticks
+  if (gs.bleedRoundsLeft.player > 0) {
+    gs.playerHP -= gs.bleedStacks.player;
+    gs.bleedRoundsLeft.player -= 1;
+    log(`Bleed! You take ${gs.bleedStacks.player} damage. (${gs.bleedRoundsLeft.player} rounds left)`, 'log-bleed');
+    if (gs.bleedRoundsLeft.player === 0) gs.bleedStacks.player = 0;
+  }
+  if (gs.bleedRoundsLeft.enemy > 0) {
+    gs.enemyHP -= gs.bleedStacks.enemy;
+    gs.bleedRoundsLeft.enemy -= 1;
+    log(`Bleed! Enemy takes ${gs.bleedStacks.enemy} damage. (${gs.bleedRoundsLeft.enemy} rounds left)`, 'log-bleed');
+    if (gs.bleedRoundsLeft.enemy === 0) gs.bleedStacks.enemy = 0;
+  }
+
+  // Clamp HP
+  gs.playerHP = Math.max(0, gs.playerHP);
+  gs.enemyHP  = Math.max(0, gs.enemyHP);
+
+  // Update display
+  document.getElementById('reveal-btn').disabled = true;
+  document.getElementById('next-round-btn').style.display = 'inline-block';
+
+  // Check fight end
+  if (gs.playerHP <= 0 || gs.enemyHP <= 0) {
+    document.getElementById('next-round-btn').textContent = 'See Result';
+    document.getElementById('next-round-btn').onclick = endFight;
+  } else {
+    document.getElementById('next-round-btn').textContent = 'Next Round';
+    document.getElementById('next-round-btn').onclick = nextRound;
+  }
+
+  renderFight();
+}
+
+function nextRound() {
+  // Bait enforcement for player
+  if (gs.baitForced.player) {
+    const maxPwr = Math.max(...gs.playerHand.map(c => c.power));
+    const forced = gs.playerHand.find(c => c.power === maxPwr);
+    if (forced) {
+      gs.playedCard = forced;
+      gs.roundLog = [{ text: 'Bait forced you to play your highest-Power card!', cls: 'log-lose' }];
+    }
+    gs.baitForced.player = false;
+  } else {
+    gs.playedCard = null;
+  }
+  gs.enemyPlayedCard = null;
+  document.getElementById('next-round-btn').style.display = 'none';
+  renderFight();
+}
+
+function endFight() {
+  document.getElementById('next-round-btn').style.display = 'none';
+  if (gs.playerHP <= 0) {
+    // Player lost
+    showEndScreen(false);
+    return;
+  }
+  // Player won the fight
+  if (gs.fightIndex >= 4) {
+    showEndScreen(true);
+    return;
+  }
+  showReward();
+}
+
+// ── REWARD PHASE ────────────────────────────────────────────────────────────
+function showReward() {
+  gs.rewardChoice = null;
+  gs.rewardSubChoice = null;
+  document.getElementById('upgrade-picker').classList.remove('visible');
+  document.getElementById('keyword-picker').classList.remove('visible');
+  document.getElementById('continue-btn').disabled = true;
+
+  const container = document.getElementById('reward-options');
+  container.innerHTML = '';
+
+  // Option A: Add a random unchosen card
+  const unchosen = CARD_POOL.filter(c => !gs.playerDeck.some(dc => dc.id === c.id));
+  const newCard = unchosen.length ? rand(unchosen) : null;
+
+  const rewards = [
+    {
+      id: 'add',
+      title: 'Add Card',
+      desc: newCard
+        ? `Add <strong>${newCard.name}</strong> (PWR ${newCard.power}, ${newCard.keyword || '—'}) to your deck.`
+        : 'No unchosen cards remain.',
+      disabled: !newCard,
+      card: newCard,
+    },
+    {
+      id: 'upgrade',
+      title: 'Upgrade Card',
+      desc: 'Choose a card in your deck to gain +2 Power.',
+      disabled: false,
+    },
+    {
+      id: 'keyword',
+      title: 'Add Keyword',
+      desc: 'Choose a card with no keyword to receive a random one.',
+      disabled: !gs.playerDeck.some(c => !c.keyword),
+    },
+  ];
+
+  rewards.forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'reward-option' + (r.disabled ? ' disabled' : '');
+    el.innerHTML = `<div class="reward-title">${r.title}</div><div class="reward-desc">${r.desc}</div>`;
+    if (!r.disabled) {
+      el.addEventListener('click', () => selectReward(r, el));
+    }
+    container.appendChild(el);
+  });
+
+  showPhase('reward-phase');
+}
+
+function selectReward(r, el) {
+  document.querySelectorAll('.reward-option').forEach(o => o.classList.remove('selected-reward'));
+  el.classList.add('selected-reward');
+  gs.rewardChoice = r.id;
+  gs.rewardSubChoice = null;
+  document.getElementById('upgrade-picker').classList.remove('visible');
+  document.getElementById('keyword-picker').classList.remove('visible');
+
+  if (r.id === 'add') {
+    gs.rewardSubChoice = r.card;
+    document.getElementById('continue-btn').disabled = false;
+  } else if (r.id === 'upgrade') {
+    showUpgradePicker();
+  } else if (r.id === 'keyword') {
+    showKeywordPicker();
+  }
+}
+
+function showUpgradePicker() {
+  document.getElementById('continue-btn').disabled = true;
+  const grid = document.getElementById('upgrade-card-grid');
+  grid.innerHTML = '';
+  gs.playerDeck.forEach((card, i) => {
+    const el = cardEl(card, {
+      onClick: () => {
+        grid.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        gs.rewardSubChoice = i;
+        document.getElementById('continue-btn').disabled = false;
+      },
+    });
+    grid.appendChild(el);
+  });
+  document.getElementById('upgrade-picker').classList.add('visible');
+}
+
+function showKeywordPicker() {
+  document.getElementById('continue-btn').disabled = true;
+  const grid = document.getElementById('keyword-card-grid');
+  grid.innerHTML = '';
+  gs.playerDeck.forEach((card, i) => {
+    if (card.keyword) return;
+    const el = cardEl(card, {
+      onClick: () => {
+        grid.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        gs.rewardSubChoice = i;
+        document.getElementById('continue-btn').disabled = false;
+      },
+    });
+    grid.appendChild(el);
+  });
+  document.getElementById('keyword-picker').classList.add('visible');
+}
+
+document.getElementById('continue-btn').addEventListener('click', () => {
+  if (gs.rewardChoice === 'add' && gs.rewardSubChoice) {
+    gs.playerDeck.push(cloneCard(gs.rewardSubChoice));
+  } else if (gs.rewardChoice === 'upgrade' && gs.rewardSubChoice !== null) {
+    gs.playerDeck[gs.rewardSubChoice].power += 2;
+  } else if (gs.rewardChoice === 'keyword' && gs.rewardSubChoice !== null) {
+    gs.playerDeck[gs.rewardSubChoice].keyword = rand(KEYWORDS);
+  }
+  gs.fightIndex += 1;
+  startFight();
+});
+
+// ── END SCREEN ──────────────────────────────────────────────────────────────
+function showEndScreen(won) {
+  const enemyName = FIGHT_ORDER[gs.fightIndex];
+  document.getElementById('end-title').textContent = won ? 'Victory!' : 'Defeated.';
+  document.getElementById('end-message').innerHTML = won
+    ? `You conquered all 5 fights and defeated The Arbiter.<br>The war is won.`
+    : `You were defeated by <strong>${enemyName}</strong> in fight ${gs.fightIndex + 1}.<br>Better luck next time.`;
+  showPhase('end-phase');
+}
+
+document.getElementById('play-again-btn').addEventListener('click', () => {
+  initState();
+  renderDraft();
+});
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+initState();
+renderDraft();
+</script>
+</body>
+</html>
